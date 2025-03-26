@@ -1,0 +1,17 @@
+server:
+  listen: 3000
+  workers: 4
+  upstreams:
+    - id: "backend1"
+      url: "http://localhost:8080"
+    - id: "backend2"
+      url: "http://localhost:8081"
+  headers:
+    - key: "X-Forwarded-For"
+      value: "$remote_addr"
+  rules:
+    - path: "/api"
+      upstreams: ["backend1"]
+    - path: "/admin"
+      upstreams: ["backend2"]
+
