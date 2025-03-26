@@ -1,17 +1,19 @@
 server:
   listen: 3000
-  workers: 4
+  workers: 2
   upstreams:
-    - id: "backend1"
+    - id: "node1"
       url: "http://localhost:8080"
-    - id: "backend2"
+    - id: "node2"
       url: "http://localhost:8081"
   headers:
     - key: "X-Forwarded-For"
-      value: "$remote_addr"
+      value: "$ip"
+    - key: Authorization
+      value: 'Bearer xyz'
   rules:
     - path: "/api"
-      upstreams: ["backend1"]
+      upstreams: ["node1", "node2"]
     - path: "/admin"
-      upstreams: ["backend2"]
+      upstreams: ["node2"]
 
