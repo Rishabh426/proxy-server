@@ -12,28 +12,24 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const commander_1 = require("commander");
-const config_1 = require("./config");
-const node_os_1 = __importDefault(require("node:os"));
-const server_1 = require("./server");
-function main() {
+exports.createserver = createserver;
+const cluster_1 = __importDefault(require("cluster"));
+const node_http_1 = __importDefault(require("node:http"));
+function createserver(config) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
-        commander_1.program.option('--config <path>');
-        commander_1.program.parse();
-        const options = commander_1.program.opts();
-        if (options && 'config' in options) {
-            const validatedConfig = yield (0, config_1.validateConfig)(yield (0, config_1.parseYAMLConfig)(options.config));
-            yield (0, server_1.createserver)({
-                port: validatedConfig.server.listen,
-                workerCount: (_a = validatedConfig.server.workers) !== null && _a !== void 0 ? _a : node_os_1.default.cpus().length,
-                config: validatedConfig,
+        const { workerCount } = config;
+        if (cluster_1.default.isPrimary) {
+            console.log("Master process is on");
+            for (let i = 0; i < workerCount; i++) {
+                cluster_1.default.fork({ config: JSON.stringify(config.config) });
+                console.log(`Master process : Worker node spinned up ${i}`);
+            }
+            const server = node_http_1.default.createServer((req, res) => {
             });
-            console.log(validatedConfig);
         }
+        else {
+            console.log(`Worker node`, JSON.stringify(process.env.config));
+        }
+        const workers = new Array(workerCount);
     });
-}
-main();
-function createServer(arg0) {
-    throw new Error('Function not implemented.');
 }

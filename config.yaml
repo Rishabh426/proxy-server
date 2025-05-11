@@ -6,7 +6,7 @@ server:
       url: "http://localhost:8080"
     - id: "node2"
       url: "http://localhost:8081"
-  headers:
+  headers:  
     - key: "X-Forwarded-For"
       value: "$ip"
     - key: Authorization
