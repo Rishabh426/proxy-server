@@ -1,5 +1,6 @@
 import { program } from 'commander'
 import { parseYAMLConfig, validateConfig } from './config'
+import { rootConfigSchema } from './config-schema';
 import os from "node:os"
 import { createserver } from './server';
 
@@ -18,7 +19,7 @@ async function main() {
                 workerCount: validatedConfig.server.workers ?? os.cpus().length,
                 config: validatedConfig,
             });
-        console.log(validatedConfig);
+        // console.log(validatedConfig);
     }
 }
 

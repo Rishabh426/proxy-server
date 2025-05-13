@@ -29,7 +29,7 @@ function main() {
                 workerCount: (_a = validatedConfig.server.workers) !== null && _a !== void 0 ? _a : node_os_1.default.cpus().length,
                 config: validatedConfig,
             });
-            console.log(validatedConfig);
+            // console.log(validatedConfig);
         }
     });
 }

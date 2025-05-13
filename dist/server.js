@@ -13,23 +13,44 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createserver = createserver;
-const cluster_1 = __importDefault(require("cluster"));
+const node_cluster_1 = __importDefault(require("node:cluster"));
 const node_http_1 = __importDefault(require("node:http"));
+const server_schema_1 = require("./server-schema");
 function createserver(config) {
     return __awaiter(this, void 0, void 0, function* () {
+        const WORKER_POOL = [];
         const { workerCount } = config;
-        if (cluster_1.default.isPrimary) {
+        if (node_cluster_1.default.isPrimary) {
             console.log("Master process is on");
             for (let i = 0; i < workerCount; i++) {
-                cluster_1.default.fork({ config: JSON.stringify(config.config) });
+                const w = node_cluster_1.default.fork({ config: JSON.stringify(config.config) });
+                WORKER_POOL.push(w);
                 console.log(`Master process : Worker node spinned up ${i}`);
             }
             const server = node_http_1.default.createServer((req, res) => {
+                const index = Math.floor(Math.random() * WORKER_POOL.length);
+                const worker = WORKER_POOL.at(index);
+                if (!worker)
+                    throw new Error(`Worker not found`);
+                const payload = {
+                    requesttype: 'HTTP',
+                    headers: req.headers,
+                    body: null,
+                    url: `${req.url}`,
+                };
+                worker.send(JSON.stringify(payload));
             });
+            server.listen(config.port, () => console.log(`reverse proxy on port ${config.port}`));
         }
         else {
-            console.log(`Worker node`, JSON.stringify(process.env.config));
+            console.log(`Worker node`);
         }
         const workers = new Array(workerCount);
+        process.on('message', (m) => __awaiter(this, void 0, void 0, function* () {
+            const messagevalidated = yield server_schema_1.workerMessgageSchema.parseAsync(JSON.parse(m));
+            // console.log(`WORKER`, m);
+            const requrl = messagevalidated.url;
+            const rule = config.server.rules.filter(e => e.path === requrl);
+        }));
     });
 }
