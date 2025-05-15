@@ -44,13 +44,45 @@ function createserver(config) {
         }
         else {
             console.log(`Worker node`);
+            // Parse the config from process.env
+            const workerConfig = JSON.parse(process.env.config || '{}');
+            process.on('message', (m) => __awaiter(this, void 0, void 0, function* () {
+                const messagevalidated = yield server_schema_1.workerMessgageSchema.parseAsync(JSON.parse(m));
+                // console.log(`WORKER`, m);
+                const requrl = messagevalidated.url;
+                const rule = workerConfig.server.rules.find(e => e.path === requrl);
+                if (!rule) {
+                    const reply = {
+                        errorcode: '404',
+                        error: `Rule not found`,
+                    };
+                    if (process.send)
+                        process.send(JSON.stringify(reply));
+                }
+                const upstreamID = rule === null || rule === void 0 ? void 0 : rule.upstreams[0];
+                const upstream = workerConfig.server.upstreams.find(e => e.id === upstreamID);
+                if (!upstreamID) {
+                    const reply = {
+                        errorcode: '500',
+                        error: `Upstream not found`,
+                    };
+                    if (process.send)
+                        process.send(JSON.stringify(reply));
+                }
+                node_http_1.default.request({ host: upstream === null || upstream === void 0 ? void 0 : upstream.url, path: requrl }, (proxyresponse) => {
+                    let body = '';
+                    proxyresponse.on('data', (chunk) => {
+                        body += chunk;
+                    });
+                    proxyresponse.on('end', () => {
+                        const reply = {
+                            data: body,
+                        };
+                        if (process.send)
+                            return process.send(JSON.stringify(reply));
+                    });
+                });
+            }));
         }
-        const workers = new Array(workerCount);
-        process.on('message', (m) => __awaiter(this, void 0, void 0, function* () {
-            const messagevalidated = yield server_schema_1.workerMessgageSchema.parseAsync(JSON.parse(m));
-            // console.log(`WORKER`, m);
-            const requrl = messagevalidated.url;
-            const rule = config.server.rules.filter(e => e.path === requrl);
-        }));
     });
 }

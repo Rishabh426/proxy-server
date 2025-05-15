@@ -1,8 +1,10 @@
 import cluster, { Worker } from "node:cluster";
 import { ConfigSchemaType } from "./config-schema";
 import http from "node:http";
-import { workerMessgageType, workerMessgageSchema } from "./server-schema";
-import { rootConfigSchema } from "./config-schema";
+import { workerMessgageType, workerMessgageSchema, workerMessgageReplyType } from "./server-schema";
+import { workerMessgageReplySchema } from "./server-schema";
+import { url } from "node:inspector";
+import { date } from "zod";
 
 interface CreateServerConfig {
     port: number,
@@ -43,15 +45,49 @@ export async function createserver(config: CreateServerConfig) {
         server.listen(config.port, () => console.log(`reverse proxy on port ${config.port}`));
     } 
     else {
-        console.log(`Worker node`); }
-    const workers = new Array(workerCount);
+        console.log(`Worker node`);
+        // Parse the config from process.env
+        const workerConfig = JSON.parse(process.env.config || '{}') as ConfigSchemaType;
+        
+        process.on('message', async (m: string) => {
+            const messagevalidated = await workerMessgageSchema.parseAsync(JSON.parse(m));
+            // console.log(`WORKER`, m);
 
-    process.on('message', async (m: string) => {
-        const messagevalidated = await workerMessgageSchema.parseAsync(JSON.parse(m));
-        // console.log(`WORKER`, m);
+            const requrl = messagevalidated.url;
+            const rule = workerConfig.server.rules.find(e => e.path === requrl);
 
-        const requrl = messagevalidated.url;
-        // const rule = config.server.rules.filter(e => e.path === requrl)
+            if(!rule) {
+                const reply: workerMessgageReplyType = {
+                    errorcode: '404',
+                    error: `Rule not found`,
+                }
+                if(process.send) process.send(JSON.stringify(reply));
+            }
+            
+            const upstreamID = rule?.upstreams[0];
+            const upstream = workerConfig.server.upstreams.find(e => e.id === upstreamID);
 
-    })
-}  
+            if(!upstreamID) {
+                const reply: workerMessgageReplyType = {
+                    errorcode: '500',
+                    error: `Upstream not found`,
+                }
+                if(process.send) process.send(JSON.stringify(reply));
+            }
+
+            http.request({host: upstream?.url, path: requrl}, (proxyresponse) => {
+                let body = '';
+                proxyresponse.on('data', (chunk) => {
+                    body += chunk;
+                })
+
+                proxyresponse.on('end', () => {
+                    const reply: workerMessgageReplyType = {
+                        data: body,
+                    };
+                    if(process.send) return process.send(JSON.stringify(reply));
+                })
+            });
+        })
+    }
+}
