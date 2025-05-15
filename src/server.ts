@@ -3,8 +3,7 @@ import { ConfigSchemaType } from "./config-schema";
 import http from "node:http";
 import { workerMessgageType, workerMessgageSchema, workerMessgageReplyType } from "./server-schema";
 import { workerMessgageReplySchema } from "./server-schema";
-import { url } from "node:inspector";
-import { date } from "zod";
+import { URL } from "url";
 
 interface CreateServerConfig {
     port: number,
@@ -40,13 +39,25 @@ export async function createserver(config: CreateServerConfig) {
             }
 
             worker.send(JSON.stringify(payload));
+
+            worker.on('message', async (workerreply: string) => {
+                const reply = await workerMessgageReplySchema.parseAsync(JSON.parse(workerreply))
+                if(reply.errorcode) {
+                    res.writeHead(parseInt(reply.errorcode));
+                    res.end(reply.error);
+                    return;
+                } else {
+                    res.writeHead(200);
+                    res.end(reply.data);
+                    return;
+                }
+            })
             
         })
         server.listen(config.port, () => console.log(`reverse proxy on port ${config.port}`));
     } 
     else {
         console.log(`Worker node`);
-        // Parse the config from process.env
         const workerConfig = JSON.parse(process.env.config || '{}') as ConfigSchemaType;
         
         process.on('message', async (m: string) => {
@@ -62,32 +73,58 @@ export async function createserver(config: CreateServerConfig) {
                     error: `Rule not found`,
                 }
                 if(process.send) process.send(JSON.stringify(reply));
+                return;
             }
             
-            const upstreamID = rule?.upstreams[0];
+            const upstreamID = rule.upstreams[0];
             const upstream = workerConfig.server.upstreams.find(e => e.id === upstreamID);
 
-            if(!upstreamID) {
+            if(!upstream) {
                 const reply: workerMessgageReplyType = {
                     errorcode: '500',
                     error: `Upstream not found`,
                 }
                 if(process.send) process.send(JSON.stringify(reply));
+                return; 
             }
 
-            http.request({host: upstream?.url, path: requrl}, (proxyresponse) => {
-                let body = '';
-                proxyresponse.on('data', (chunk) => {
-                    body += chunk;
-                })
+            const upstreamUrl = new URL(upstream.url);
+            
+            const requestOptions = {
+                hostname: upstreamUrl.hostname,
+                port: upstreamUrl.port || (upstreamUrl.protocol === 'https:' ? 443 : 80),
+                path: requrl,
+                method: 'GET',
+                headers: messagevalidated.headers
+            };
+
+            const proxyReq = http.request(requestOptions, (proxyresponse) => {
+                let responseData: Buffer[] = [];
+                
+                proxyresponse.on('data', (chunk: Buffer) => {
+                    responseData.push(chunk);
+                });
 
                 proxyresponse.on('end', () => {
+                    const body = Buffer.concat(responseData).toString();
                     const reply: workerMessgageReplyType = {
                         data: body,
+                        error: '', 
+                        errorcode: '500' 
                     };
-                    if(process.send) return process.send(JSON.stringify(reply));
-                })
+                    if(process.send) process.send(JSON.stringify(reply));
+                });
             });
-        })
+            
+            proxyReq.on('error', (err) => {
+                const reply: workerMessgageReplyType = {
+                    errorcode: '500',
+                    error: `Error connecting to upstream: ${err.message}`
+                };
+                if(process.send) process.send(JSON.stringify(reply));
+            });
+            
+            proxyReq.end();
+        });
     }
 }
