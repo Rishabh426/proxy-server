@@ -1,9 +1,10 @@
 import cluster, { Worker } from "node:cluster";
 import { ConfigSchemaType } from "./config-schema";
-import http from "node:http";
+import http, { request } from "node:http";
 import { workerMessgageType, workerMessgageSchema, workerMessgageReplyType } from "./server-schema";
 import { workerMessgageReplySchema } from "./server-schema";
 import { URL } from "url";
+import { preprocess } from "zod";
 
 interface CreateServerConfig {
     port: number,
@@ -58,73 +59,52 @@ export async function createserver(config: CreateServerConfig) {
     } 
     else {
         console.log(`Worker node`);
-        const workerConfig = JSON.parse(process.env.config || '{}') as ConfigSchemaType;
+        const config = JSON.parse(`${process.env.config}`) as ConfigSchemaType;
         
         process.on('message', async (m: string) => {
             const messagevalidated = await workerMessgageSchema.parseAsync(JSON.parse(m));
             // console.log(`WORKER`, m);
 
             const requrl = messagevalidated.url;
-            const rule = workerConfig.server.rules.find(e => e.path === requrl);
+            const rule = config.server.rules.find(e => e.path === requrl);
 
             if(!rule) {
                 const reply: workerMessgageReplyType = {
-                    errorcode: '404',
+                    errorcode: "404",
                     error: `Rule not found`,
                 }
-                if(process.send) process.send(JSON.stringify(reply));
-                return;
+                if(process.send) return process.send(JSON.stringify(reply));
             }
-            
-            const upstreamID = rule.upstreams[0];
-            const upstream = workerConfig.server.upstreams.find(e => e.id === upstreamID);
+            const upstreamID = rule?.upstreams[0];
+            const upstream = config.server.upstreams.find(e => e.id === upstreamID)
 
-            if(!upstream) {
+            if(!upstreamID) {
                 const reply: workerMessgageReplyType = {
-                    errorcode: '500',
+                    errorcode: "500",
                     error: `Upstream not found`,
                 }
-                if(process.send) process.send(JSON.stringify(reply));
-                return; 
+                if(process.send) return process.send(JSON.stringify(reply));
             }
 
-            const upstreamUrl = new URL(upstream.url);
-            
-            const requestOptions = {
-                hostname: upstreamUrl.hostname,
-                port: upstreamUrl.port || (upstreamUrl.protocol === 'https:' ? 443 : 80),
+            const request = http.request({
+                host: upstream?.url,
                 path: requrl,
-                method: 'GET',
-                headers: messagevalidated.headers
-            };
+            }, (proxyRes) => {
 
-            const proxyReq = http.request(requestOptions, (proxyresponse) => {
-                let responseData: Buffer[] = [];
-                
-                proxyresponse.on('data', (chunk: Buffer) => {
-                    responseData.push(chunk);
+                let body = '';
+                proxyRes.on('data', (chunk) => {
+                    body += chunk;
                 });
 
-                proxyresponse.on('end', () => {
-                    const body = Buffer.concat(responseData).toString();
+                proxyRes.on('end', () => {
                     const reply: workerMessgageReplyType = {
                         data: body,
-                        error: '', 
-                        errorcode: '500' 
-                    };
-                    if(process.send) process.send(JSON.stringify(reply));
-                });
-            });
-            
-            proxyReq.on('error', (err) => {
-                const reply: workerMessgageReplyType = {
-                    errorcode: '500',
-                    error: `Error connecting to upstream: ${err.message}`
-                };
-                if(process.send) process.send(JSON.stringify(reply));
-            });
-            
-            proxyReq.end();
+                    }
+                    if(process.send) return process.send(JSON.stringify(reply));
+                })
+            })
+            request.end();
         });
+
     }
 }
