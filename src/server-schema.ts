@@ -10,7 +10,8 @@ export const workerMessgageSchema = z.object( {
 export const workerMessgageReplySchema = z.object( {
     data: z.string().optional(),
     error: z.string().optional(),
-    errorcode: z.enum(['500', '404']).optional(),
+    errorcode: z.enum(['500', '404', '502']).optional(),
+    headers: z.any().optional(),
 
 });
 export type workerMessgageType = z.infer<typeof workerMessgageSchema>;

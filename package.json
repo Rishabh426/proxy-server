@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "load-test": "ts-node src/load-balancer-test.ts",
     "start": "node dist/index --config config.yaml",
     "build": "tsc -p .",
     "dev": "tsc-watch --onSuccess \"npm start\""
@@ -16,6 +16,7 @@
   "devDependencies": {
     "@types/express": "^5.0.2",
     "@types/node": "^22.15.18",
+    "ts-node": "^10.9.2",
     "tsc-watch": "^6.2.1",
     "typescript": "^5.8.3"
   },

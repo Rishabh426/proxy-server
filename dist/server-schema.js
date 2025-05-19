@@ -11,5 +11,6 @@ exports.workerMessgageSchema = zod_1.z.object({
 exports.workerMessgageReplySchema = zod_1.z.object({
     data: zod_1.z.string().optional(),
     error: zod_1.z.string().optional(),
-    errorcode: zod_1.z.enum(['500', '404']).optional(),
+    errorcode: zod_1.z.enum(['500', '404', '502']).optional(),
+    headers: zod_1.z.any().optional(),
 });
