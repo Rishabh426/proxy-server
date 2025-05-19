@@ -16,6 +16,5 @@ server:
       upstreams: ["node1", "node2"]
     - path: "/admin"
       upstreams: ["node2"]
-    - path: "/todos"
+    - path: /todos
       upstreams: ["node1"]
-

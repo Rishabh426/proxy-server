@@ -14,12 +14,14 @@
   "license": "ISC",
   "packageManager": "pnpm@10.6.2",
   "devDependencies": {
-    "@types/node": "^22.13.10",
+    "@types/express": "^5.0.2",
+    "@types/node": "^22.15.18",
     "tsc-watch": "^6.2.1",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.3"
   },
   "dependencies": {
     "commander": "^13.1.0",
+    "express": "^5.1.0",
     "yaml": "^2.7.0",
     "zod": "^3.24.2"
   }

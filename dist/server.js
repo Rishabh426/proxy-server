@@ -17,7 +17,6 @@ const node_cluster_1 = __importDefault(require("node:cluster"));
 const node_http_1 = __importDefault(require("node:http"));
 const server_schema_1 = require("./server-schema");
 const server_schema_2 = require("./server-schema");
-const url_1 = require("url");
 function createserver(config) {
     return __awaiter(this, void 0, void 0, function* () {
         const WORKER_POOL = [];
@@ -59,65 +58,47 @@ function createserver(config) {
         }
         else {
             console.log(`Worker node`);
-            const workerConfig = JSON.parse(process.env.config || '{}');
+            const config = JSON.parse(`${process.env.config}`);
             process.on('message', (m) => __awaiter(this, void 0, void 0, function* () {
                 const messagevalidated = yield server_schema_1.workerMessgageSchema.parseAsync(JSON.parse(m));
                 // console.log(`WORKER`, m);
                 const requrl = messagevalidated.url;
-                const rule = workerConfig.server.rules.find(e => e.path === requrl);
+                const rule = config.server.rules.find(e => e.path === requrl);
                 if (!rule) {
                     const reply = {
-                        errorcode: '404',
+                        errorcode: "404",
                         error: `Rule not found`,
                     };
                     if (process.send)
-                        process.send(JSON.stringify(reply));
-                    return;
+                        return process.send(JSON.stringify(reply));
                 }
-                const upstreamID = rule.upstreams[0];
-                const upstream = workerConfig.server.upstreams.find(e => e.id === upstreamID);
-                if (!upstream) {
+                const upstreamID = rule === null || rule === void 0 ? void 0 : rule.upstreams[0];
+                const upstream = config.server.upstreams.find(e => e.id === upstreamID);
+                if (!upstreamID) {
                     const reply = {
-                        errorcode: '500',
+                        errorcode: "500",
                         error: `Upstream not found`,
                     };
                     if (process.send)
-                        process.send(JSON.stringify(reply));
-                    return;
+                        return process.send(JSON.stringify(reply));
                 }
-                const upstreamUrl = new url_1.URL(upstream.url);
-                const requestOptions = {
-                    hostname: upstreamUrl.hostname,
-                    port: upstreamUrl.port || (upstreamUrl.protocol === 'https:' ? 443 : 80),
+                const request = node_http_1.default.request({
+                    host: upstream === null || upstream === void 0 ? void 0 : upstream.url,
                     path: requrl,
-                    method: 'GET',
-                    headers: messagevalidated.headers
-                };
-                const proxyReq = node_http_1.default.request(requestOptions, (proxyresponse) => {
-                    let responseData = [];
-                    proxyresponse.on('data', (chunk) => {
-                        responseData.push(chunk);
+                }, (proxyRes) => {
+                    let body = '';
+                    proxyRes.on('data', (chunk) => {
+                        body += chunk;
                     });
-                    proxyresponse.on('end', () => {
-                        const body = Buffer.concat(responseData).toString();
+                    proxyRes.on('end', () => {
                         const reply = {
                             data: body,
-                            error: '',
-                            errorcode: '500'
                         };
                         if (process.send)
-                            process.send(JSON.stringify(reply));
+                            return process.send(JSON.stringify(reply));
                     });
                 });
-                proxyReq.on('error', (err) => {
-                    const reply = {
-                        errorcode: '500',
-                        error: `Error connecting to upstream: ${err.message}`
-                    };
-                    if (process.send)
-                        process.send(JSON.stringify(reply));
-                });
-                proxyReq.end();
+                request.end();
             }));
         }
     });
