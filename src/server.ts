@@ -87,7 +87,12 @@ export async function createserver(config: CreateServerConfig) {
                 const messagevalidated = await workerMessgageSchema.parseAsync(JSON.parse(m));
                 
                 const requrl = messagevalidated.url;
-                console.log(`[Worker ${process.pid}] Processing request for ${requrl}`);
+                const userAgent = messagevalidated.headers['user-agent'];
+                const clientIp = messagevalidated.headers['x-forwarded-for'] || 'unknown';
+
+                if (clientIp === '123.45.67.89') { 
+                    console.log(`[Worker ${process.pid}] Headers for user ${clientIp}:`, messagevalidated.headers);
+                }
                 
                 const rule = config.server.rules.find(e => e.path === requrl);
 
@@ -120,7 +125,7 @@ export async function createserver(config: CreateServerConfig) {
                     return;
                 }
 
-                console.log(`[Worker ${process.pid}] Forwarding to upstream: ${upstream.url}${requrl}`);
+                // console.log(`[Worker ${process.pid}] Forwarding to upstream: ${upstream.url}${requrl}`);
                 
                 const request = http.request({
                     host: upstream.url,
@@ -132,7 +137,7 @@ export async function createserver(config: CreateServerConfig) {
                     });
 
                     proxyRes.on('end', () => {
-                        console.log(`[Worker ${process.pid}] Received response from upstream for ${requrl}`);
+                        // console.log(`[Worker ${process.pid}] Received response from upstream for ${requrl}`);
                         
                         const reply: workerMessgageReplyType = {
                             data: body,

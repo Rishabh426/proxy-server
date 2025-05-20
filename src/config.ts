@@ -9,6 +9,9 @@ export async function parseYAMLConfig(filepath: string) {
 }
 
 export async function validateConfig(config: string) {
+
     const validatedConfig = await rootConfigSchema.parseAsync(JSON.parse(config));
     return validatedConfig;  
+
+    
 }

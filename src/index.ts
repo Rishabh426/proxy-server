@@ -1,6 +1,5 @@
 import { program } from 'commander'
 import { parseYAMLConfig, validateConfig } from './config'
-import { rootConfigSchema } from './config-schema';
 import os from "node:os"
 import { createserver } from './server';
 
