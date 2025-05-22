@@ -87,7 +87,10 @@ function createserver(config) {
                     if (clientIp === '123.45.67.89') {
                         console.log(`[Worker ${process.pid}] Headers for user ${clientIp}:`, messagevalidated.headers);
                     }
-                    const rule = config.server.rules.find(e => e.path === requrl);
+                    const rule = config.server.rules.find(e => {
+                        const pathPattern = new RegExp(`^${e.path}(\\/.*)?$`);
+                        return pathPattern.test(requrl);
+                    });
                     if (!rule) {
                         console.log(`[Worker ${process.pid}] Rule not found for ${requrl}`);
                         const reply = {

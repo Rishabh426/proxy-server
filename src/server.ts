@@ -93,16 +93,19 @@ export async function createserver(config: CreateServerConfig) {
                 if (clientIp === '123.45.67.89') { 
                     console.log(`[Worker ${process.pid}] Headers for user ${clientIp}:`, messagevalidated.headers);
                 }
-                
-                const rule = config.server.rules.find(e => e.path === requrl);
 
-                if(!rule) {
+                const rule = config.server.rules.find(e => {
+                    const pathPattern = new RegExp(`^${e.path}(\\/.*)?$`);
+                    return pathPattern.test(requrl);
+                });
+
+                if (!rule) {
                     console.log(`[Worker ${process.pid}] Rule not found for ${requrl}`);
                     const reply: workerMessgageReplyType = {
                         errorcode: "404",
                         error: `Rule not found`,
-                    }
-                    if(process.send) {
+                    };
+                    if (process.send) {
                         process.send(JSON.stringify(reply));
                         process.send(JSON.stringify({ connectionClosed: true }));
                     }
