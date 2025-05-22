@@ -8,8 +8,6 @@ A high-performance, feature-rich reverse proxy server built with Node.js and Typ
 - **Health Checking**: Automatic upstream health monitoring with failover
 - **Request Routing**: Flexible path-based routing with regex and parameter support
 - **Caching**: Built-in response caching with configurable TTL
-- **Authentication**: Support for Basic Auth, JWT, and API Key authentication
-- **Rate Limiting**: Configurable rate limiting per client
 - **Request/Response Transformation**: Header manipulation and body transformation
 - **Redirection**: Support for HTTP redirects and informational responses
 - **Worker Pool**: Multi-process architecture for high concurrency
@@ -135,16 +133,6 @@ The proxy server automatically handles all HTTP methods and routes them accordin
 Performs an actual HTTP redirect to the upstream server. The client's browser will show the upstream URL.
 
 
-### API Key Authentication
-```yaml
-auth:
-  api-auth:
-    type: "apikey"
-    options:
-      apiKeys: ["key1", "key2"]
-      headerName: "X-API-Key"
-```
-
 ### Log Output Example
 ```
 Master process is running
@@ -154,7 +142,6 @@ Reverse proxy running on port 3000
 Upstream api-server status changed from unknown to healthy
 ```
 
-## Performance Tuning
 
 ### Worker Count
 Set the number of workers based on your CPU cores and expected load:
